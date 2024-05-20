@@ -35,6 +35,9 @@ SkyLaunch is an interactive script for creating instances in Oracle Cloud Infras
 ## Requirements
 
 - Python 3.x
+- OCI
+- colorma
+- pip
 
 ### Prerequisites
 
@@ -62,4 +65,14 @@ Gather the following OCIDs from the OCI Console:
 
 ### Recommended Environment
 
-It is recommended to run this script on a VPS or a computer that has constant network access and is always on, ensuring the script never stops until it succeeds.
+For optimal performance, run this script on a VPS or a computer with constant network access that remains powered on. Use tools like `screen` or `tmux` to keep the session open. For example, you can use `tmux` and then run the installation script.
+
+
+## Screenshots
+
+### Main Menu
+![Menu](Screenshots/Menu.jpg)
+
+### Instance Creation Process
+![Process](Screenshots/Process.jpg)
+
