@@ -205,7 +205,7 @@ def get_availability_domains(identity_client, compartment_id):
     return [ad.name for ad in availability_domains]
 
 def update_status_message(message):
-    print(Fore.GREEN + message + Style.RESET_ALL, end='\r')
+    print(Fore.GREEN + message + Style.RESET_ALL)
 
 def start_instance_creation_process():
     clear_screen()
@@ -236,13 +236,17 @@ def start_instance_creation_process():
         for ad in availability_domains:
             try:
                 clear_screen()
+                print_banner()
                 update_status_message(f"Attempting to create a new instance in availability domain {ad}...")
                 instance = create_instance(config, compartment_id, subnet_id, image_id, shape, ssh_public_key, ocpus, memory_in_gbs, instance_name, ad)
                 clear_screen()
+                print_banner()
                 print(Fore.GREEN + f"Successfully created instance {instance_name} with OCID {instance.id} in availability domain {ad}")
                 return  # Exit the loop on successful creation
 
             except oci.exceptions.ServiceError as e:
+                clear_screen()
+                print_banner()
                 logger.error("Service error occurred: %s", e.message)
                 if e.status == 429:  # Rate limit error code
                     update_status_message("Rate limit reached, changing retry interval to 1 minute.")
@@ -274,14 +278,13 @@ def main():
         print(Fore.CYAN + "No configuration found. Starting initial setup.")
         initial_setup()
     
-    oci_config = load_oci_config()
-    compute_client = oci.core.ComputeClient(oci_config)
-    
     while True:
         choice = display_menu()
         if choice == '1':
             initial_setup()
         elif choice == '2':
+            oci_config = load_oci_config()
+            compute_client = oci.core.ComputeClient(oci_config)
             config = load_config()
             view_config(compute_client, config)
         elif choice == '3':
@@ -293,6 +296,5 @@ def main():
             logger.warning("Invalid choice, please try again.")
 
 if __name__ == "__main__":
-    logger.info("Starting the instance creation process...")
     main()
     logger.info("Instance creation process completed.")
