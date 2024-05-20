@@ -25,6 +25,10 @@ banner = """
 def print_banner():
     print(Fore.CYAN + banner)
 
+def clear_screen():
+    os.system('clear' if os.name == 'posix' else 'cls')
+    print_banner()
+
 def save_config(config):
     with open(CONFIG_FILE_PATH, 'w') as f:
         json.dump(config, f, indent=4)
@@ -197,9 +201,10 @@ def get_availability_domains(identity_client, compartment_id):
     return [ad.name for ad in availability_domains]
 
 def update_status_message(message):
-    print(Cursor.UP(1) + Fore.GREEN + message + Style.RESET_ALL, end='\r')
+    print(Fore.GREEN + message + Style.RESET_ALL, end='\r')
 
 def start_instance_creation_process():
+    clear_screen()
     config = load_oci_config()
     user_config = load_config()
 
@@ -228,6 +233,7 @@ def start_instance_creation_process():
             try:
                 update_status_message(f"Attempting to create a new instance in availability domain {ad}...")
                 instance = create_instance(config, compartment_id, subnet_id, image_id, shape, ssh_public_key, ocpus, memory_in_gbs, instance_name, ad)
+                clear_screen()
                 print(Fore.GREEN + f"Successfully created instance {instance_name} with OCID {instance.id} in availability domain {ad}")
                 return  # Exit the loop on successful creation
 
@@ -255,7 +261,7 @@ def display_menu():
     return choice
 
 def main():
-    print_banner()
+    clear_screen()
     if not os.path.exists(CONFIG_FILE_PATH):
         print(Fore.CYAN + "No configuration found. Starting initial setup.")
         initial_setup()
