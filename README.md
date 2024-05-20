@@ -34,3 +34,9 @@ SkyLaunch is an interactive script for creating instances in Oracle Cloud Infras
 - **SSH Keys**: If you wish to use SSH keys for accessing your instances, generate a public-private key pair if you don't have one:
   ```bash
   ssh-keygen -t rsa -b 2048 -f ~/.ssh/id_rsa
+
+Use the path to your public key (e.g., ~/.ssh/id_rsa.pub) during the script setup.
+
+Required OCIDs: Gather the following OCIDs from the OCI Console:
+Compartment OCID: Navigate to Identity > Compartments and find the OCID of the compartment where you want to create instances.
+Subnet OCID: Navigate to Networking > Virtual Cloud Networks, select your VCN, and find the OCID of the subnet where you want to place your instances.
