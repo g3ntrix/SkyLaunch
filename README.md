@@ -20,11 +20,17 @@ SkyLaunch is an interactive script for creating instances in Oracle Cloud Infras
 ## Requirements
 
 - Python 3.x
-- `oci` and `colorama` Python packages
 
-## Setup
+### Prerequisites
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-username/SkyLaunch.git
-   cd SkyLaunch
+- **OCI CLI Configuration**: Ensure you have the OCI CLI configured with your credentials. If you don't have the OCI CLI installed, follow these steps:
+  1. Install the OCI CLI: Follow the instructions in the [OCI CLI Installation Guide](https://docs.oracle.com/en-us/iaas/Content/API/SDKDocs/cliinstall.htm).
+  2. Configure the OCI CLI:
+     ```bash
+     oci setup config
+     ```
+     This will prompt you to enter your OCI credentials and create a configuration file at `~/.oci/config`.
+
+- **SSH Keys**: If you wish to use SSH keys for accessing your instances, generate a public-private key pair if you don't have one:
+  ```bash
+  ssh-keygen -t rsa -b 2048 -f ~/.ssh/id_rsa
