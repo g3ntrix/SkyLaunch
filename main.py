@@ -194,8 +194,8 @@ def create_instance(config, compartment_id, subnet_id, image_id, shape, ssh_publ
     return response.data
 
 def load_oci_config():
-    config_file = input("Enter the OCI config file path (default: /root/.oci/config): ") or '/root/.oci/config'
-    profile_name = input("Enter the OCI profile name (default: DEFAULT): ") or 'DEFAULT'
+    config_file = '/root/.oci/config'
+    profile_name = 'DEFAULT'
     logger.info("Loading OCI configuration from file: %s, profile: %s", config_file, profile_name)
     return from_file(file_location=config_file, profile_name=profile_name)
 
@@ -253,7 +253,8 @@ def start_instance_creation_process():
                     update_status_message("Will retry in 10 minutes.")
                     sleep_time = 600  # Set sleep time back to 10 minutes
                 update_status_message(f"Next retry attempt in {sleep_time // 60} minutes...")
-        time.sleep(sleep_time)  # Wait before retrying all availability domains
+                time.sleep(sleep_time)
+            time.sleep(1)
 
 def display_menu():
     clear_screen()
