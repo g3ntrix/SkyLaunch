@@ -58,4 +58,4 @@ pip3 install -r requirements.txt
 
 # Run the Python script
 echo "Running SkyLaunch..."
-python3 create_instance.py
+python3 main.py
