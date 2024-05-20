@@ -1,5 +1,20 @@
 # SkyLaunch
 
+## Quick Start
+
+Run the following command to download, install dependencies, and run SkyLaunch:
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/your-username/SkyLaunch/main/setup_and_run.sh)"
+```
+### Manual Setup
+
+Clone the repository:
+
+```bash
+git clone https://github.com/your-username/SkyLaunch.git
+cd SkyLaunch
+```
+
 SkyLaunch is an interactive script for creating instances in Oracle Cloud Infrastructure (OCI). With SkyLaunch, you can easily configure and deploy virtual machines (VMs) while benefiting from automatic retries across multiple availability domains. This script is particularly advantageous for free-tier users who cannot use capacity reservations, ensuring that you can secure available capacity as soon as it becomes free.
 
 ## Features
