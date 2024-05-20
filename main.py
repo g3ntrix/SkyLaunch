@@ -211,7 +211,10 @@ def update_status_message(status_messages):
     clear_screen()
     print_banner()
     for message in status_messages:
-        print(Fore.GREEN + message + Style.RESET_ALL)
+        if "Out of host capacity" in message:
+            print(Fore.RED + message + Style.RESET_ALL)
+        else:
+            print(Fore.GREEN + message + Style.RESET_ALL)
 
 def start_instance_creation_process():
     config = load_oci_config()
@@ -259,13 +262,14 @@ def start_instance_creation_process():
                     status_messages.append("Rate limit reached, changing retry interval to 1 minute.")
                     sleep_time = 60  # Reduce sleep time to 1 minute
                 elif e.status == 500:  # Out of host capacity
-                    status_messages.append(f"Out of host capacity in {ad}, moving to next availability domain.")
+                    status_messages.append(Fore.RED + f"Out of host capacity in {ad}, moving to next availability domain.")
                 else:
                     status_messages.append("Will retry in 10 minutes.")
                     sleep_time = 600  # Set sleep time back to 10 minutes
-                status_messages.append(f"Next retry attempt in {sleep_time // 60} minutes...")
                 update_status_message(status_messages)
             time.sleep(1)
+        status_messages.append(Fore.BLUE + f"Next retry attempt in {sleep_time // 60} minutes..." + Style.RESET_ALL)
+        update_status_message(status_messages)
         time.sleep(sleep_time)  # Wait before retrying all availability domains
 
 def display_menu():
