@@ -45,9 +45,13 @@ if ! command_exists pip3; then
     fi
 fi
 
-# Clone the repository
-echo "Cloning the SkyLaunch repository..."
-git clone $REPO_URL
+# Clone the repository if it doesn't already exist
+if [ ! -d "$REPO_DIR" ]; then
+    echo "Cloning the SkyLaunch repository..."
+    git clone $REPO_URL
+else
+    echo "SkyLaunch directory already exists. Skipping clone."
+fi
 
 # Navigate into the repository directory
 cd $REPO_DIR
