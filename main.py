@@ -6,9 +6,9 @@ import json
 from oci.config import from_file
 from colorama import Fore, Style, init, Cursor
 
-# Setup logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Setup logging without __main__ prefix
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+logger = logging.getLogger()
 
 CONFIG_FILE_PATH = "oci_config.json"
 
@@ -45,6 +45,7 @@ def load_config():
         return {}
 
 def view_config(compute_client, config):
+    clear_screen()
     print(Fore.GREEN + "\nCurrent Configuration:")
     for key, value in config.items():
         if key == "image_id":
@@ -75,6 +76,7 @@ def list_shapes(compute_client, compartment_id):
     return unique_shapes
 
 def select_shape(shapes):
+    clear_screen()
     logger.info("Listing available shapes for selection:")
     for idx, shape in enumerate(shapes):
         print(Fore.YELLOW + f"{idx + 1}: {shape.shape} (OCPUs: {shape.ocpus}, Memory: {shape.memory_in_gbs} GB)")
@@ -109,6 +111,7 @@ def list_images_by_shape(compute_client, compartment_id, shape):
     return ubuntu_images
 
 def select_image(images):
+    clear_screen()
     logger.info("Listing available Ubuntu images for selection:")
     for idx, image in enumerate(images):
         print(Fore.YELLOW + f"{idx + 1}: {image.display_name}")
@@ -125,6 +128,7 @@ def select_image(images):
             logger.warning("Invalid input, please enter a number.")
 
 def initial_setup():
+    clear_screen()
     config = {}
     
     oci_config = load_oci_config()
@@ -231,6 +235,7 @@ def start_instance_creation_process():
     while True:
         for ad in availability_domains:
             try:
+                clear_screen()
                 update_status_message(f"Attempting to create a new instance in availability domain {ad}...")
                 instance = create_instance(config, compartment_id, subnet_id, image_id, shape, ssh_public_key, ocpus, memory_in_gbs, instance_name, ad)
                 clear_screen()
@@ -251,6 +256,7 @@ def start_instance_creation_process():
         time.sleep(sleep_time)  # Wait before retrying all availability domains
 
 def display_menu():
+    clear_screen()
     print_banner()
     print(Fore.CYAN + "\nMenu:")
     print(Fore.CYAN + "1. Update Configuration")
@@ -262,6 +268,7 @@ def display_menu():
 
 def main():
     clear_screen()
+    print_banner()
     if not os.path.exists(CONFIG_FILE_PATH):
         print(Fore.CYAN + "No configuration found. Starting initial setup.")
         initial_setup()
