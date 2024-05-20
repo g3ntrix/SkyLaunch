@@ -21,10 +21,28 @@ if ! command_exists python3; then
     exit 1
 fi
 
-# Check for Pip
+# Check for Pip and install if not present
 if ! command_exists pip3; then
-    echo "Pip for Python 3 is not installed. Please install Pip and try again."
-    exit 1
+    echo "Pip for Python 3 is not installed. Attempting to install Pip..."
+    
+    # Determine the OS and install pip accordingly
+    if [ -f /etc/debian_version ]; then
+        # Debian-based system
+        sudo apt update
+        sudo apt install -y python3-pip
+    elif [ -f /etc/redhat-release ]; then
+        # Red Hat-based system
+        sudo yum install -y python3-pip
+    else
+        echo "Unsupported OS. Please install Pip manually and try again."
+        exit 1
+    fi
+    
+    # Verify pip installation
+    if ! command_exists pip3; then
+        echo "Pip installation failed. Please install Pip manually and try again."
+        exit 1
+    fi
 fi
 
 # Clone the repository
@@ -40,4 +58,4 @@ pip3 install -r requirements.txt
 
 # Run the Python script
 echo "Running SkyLaunch..."
-python3 main.py
+python3 create_instance.py
