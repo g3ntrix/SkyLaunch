@@ -4,7 +4,7 @@ import logging
 import os
 import json
 from oci.config import from_file
-from colorama import Fore, Style, init
+from colorama import Fore, Style, init, Cursor
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -21,6 +21,9 @@ banner = """
 ░▀▀█░█▀▄░░█░░█░░░█▀█░█░█░█░█░█░░░█▀█
 ░▀▀▀░▀░▀░░▀░░▀▀▀░▀░▀░▀▀▀░▀░▀░▀▀▀░▀░▀
 """
+
+def print_banner():
+    print(Fore.CYAN + banner)
 
 def save_config(config):
     with open(CONFIG_FILE_PATH, 'w') as f:
@@ -193,6 +196,9 @@ def get_availability_domains(identity_client, compartment_id):
     availability_domains = identity_client.list_availability_domains(compartment_id).data
     return [ad.name for ad in availability_domains]
 
+def update_status_message(message):
+    print(Cursor.UP(1) + Fore.GREEN + message + Style.RESET_ALL, end='\r')
+
 def start_instance_creation_process():
     config = load_oci_config()
     user_config = load_config()
@@ -220,25 +226,26 @@ def start_instance_creation_process():
     while True:
         for ad in availability_domains:
             try:
-                logger.info(f"Attempting to create a new instance in availability domain {ad}...")
+                update_status_message(f"Attempting to create a new instance in availability domain {ad}...")
                 instance = create_instance(config, compartment_id, subnet_id, image_id, shape, ssh_public_key, ocpus, memory_in_gbs, instance_name, ad)
-                logger.info("Successfully created instance %s with OCID %s in availability domain %s", instance_name, instance.id, ad)
+                print(Fore.GREEN + f"Successfully created instance {instance_name} with OCID {instance.id} in availability domain {ad}")
                 return  # Exit the loop on successful creation
 
             except oci.exceptions.ServiceError as e:
                 logger.error("Service error occurred: %s", e.message)
                 if e.status == 429:  # Rate limit error code
-                    logger.info("Rate limit reached, changing retry interval to 1 minute.")
+                    update_status_message("Rate limit reached, changing retry interval to 1 minute.")
                     sleep_time = 60  # Reduce sleep time to 1 minute
                 elif e.status == 500:  # Out of host capacity
-                    logger.info("Out of host capacity in %s, moving to next availability domain.", ad)
+                    update_status_message(f"Out of host capacity in {ad}, moving to next availability domain.")
                 else:
-                    logger.info("Will retry in 10 minutes.")
+                    update_status_message("Will retry in 10 minutes.")
                     sleep_time = 600  # Set sleep time back to 10 minutes
-                logger.info("Next retry attempt in %d minutes...", sleep_time // 60)
+                update_status_message(f"Next retry attempt in {sleep_time // 60} minutes...")
         time.sleep(sleep_time)  # Wait before retrying all availability domains
 
 def display_menu():
+    print_banner()
     print(Fore.CYAN + "\nMenu:")
     print(Fore.CYAN + "1. Update Configuration")
     print(Fore.CYAN + "2. View Current Configuration")
@@ -248,7 +255,7 @@ def display_menu():
     return choice
 
 def main():
-    print(banner)
+    print_banner()
     if not os.path.exists(CONFIG_FILE_PATH):
         print(Fore.CYAN + "No configuration found. Starting initial setup.")
         initial_setup()
@@ -259,7 +266,7 @@ def main():
     while True:
         choice = display_menu()
         if choice == '1':
-            update_config()
+            initial_setup()
         elif choice == '2':
             config = load_config()
             view_config(compute_client, config)
