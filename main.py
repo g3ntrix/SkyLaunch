@@ -207,8 +207,11 @@ def get_availability_domains(identity_client, compartment_id):
     availability_domains = identity_client.list_availability_domains(compartment_id).data
     return [ad.name for ad in availability_domains]
 
-def update_status_message(message):
-    print(Fore.GREEN + message + Style.RESET_ALL)
+def update_status_message(status_messages):
+    clear_screen()
+    print_banner()
+    for message in status_messages:
+        print(Fore.GREEN + message + Style.RESET_ALL)
 
 def start_instance_creation_process():
     config = load_oci_config()
@@ -243,10 +246,7 @@ def start_instance_creation_process():
         for ad in availability_domains:
             try:
                 status_messages.append(f"Attempting to create a new instance in availability domain {ad}...")
-                clear_screen()
-                print_banner()
-                for message in status_messages:
-                    print(Fore.GREEN + message)
+                update_status_message(status_messages)
                 instance = create_instance(config, compartment_id, subnet_id, image_id, shape, ssh_public_key, ocpus, memory_in_gbs, instance_name, ad)
                 clear_screen()
                 print_banner()
@@ -255,20 +255,18 @@ def start_instance_creation_process():
 
             except oci.exceptions.ServiceError as e:
                 status_messages.append(f"Service error occurred: {e.message}")
-                status_messages.append(f"Out of host capacity in {ad}, moving to next availability domain.")
                 if e.status == 429:  # Rate limit error code
                     status_messages.append("Rate limit reached, changing retry interval to 1 minute.")
                     sleep_time = 60  # Reduce sleep time to 1 minute
+                elif e.status == 500:  # Out of host capacity
+                    status_messages.append(f"Out of host capacity in {ad}, moving to next availability domain.")
                 else:
                     status_messages.append("Will retry in 10 minutes.")
                     sleep_time = 600  # Set sleep time back to 10 minutes
                 status_messages.append(f"Next retry attempt in {sleep_time // 60} minutes...")
-                clear_screen()
-                print_banner()
-                for message in status_messages:
-                    print(Fore.GREEN + message)
-                time.sleep(sleep_time)
+                update_status_message(status_messages)
             time.sleep(1)
+        time.sleep(sleep_time)  # Wait before retrying all availability domains
 
 def display_menu():
     clear_screen()
