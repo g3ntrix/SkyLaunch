@@ -4,7 +4,7 @@ import logging
 import os
 import json
 from oci.config import from_file
-from colorama import Fore, Style, init, Cursor
+from colorama import Fore, Style, init
 
 # Setup logging without __main__ prefix
 logging.basicConfig(level=logging.INFO, format='%(message)s')
@@ -27,7 +27,6 @@ def print_banner():
 
 def clear_screen():
     os.system('clear' if os.name == 'posix' else 'cls')
-    print_banner()
 
 def save_config(config):
     with open(CONFIG_FILE_PATH, 'w') as f:
@@ -46,6 +45,7 @@ def load_config():
 
 def view_config(compute_client, config):
     clear_screen()
+    print_banner()
     print(Fore.GREEN + "\nCurrent Configuration:")
     for key, value in config.items():
         if key == "image_id":
@@ -77,6 +77,7 @@ def list_shapes(compute_client, compartment_id):
 
 def select_shape(shapes):
     clear_screen()
+    print_banner()
     logger.info("Listing available shapes for selection:")
     for idx, shape in enumerate(shapes):
         print(Fore.YELLOW + f"{idx + 1}: {shape.shape} (OCPUs: {shape.ocpus}, Memory: {shape.memory_in_gbs} GB)")
@@ -112,6 +113,7 @@ def list_images_by_shape(compute_client, compartment_id, shape):
 
 def select_image(images):
     clear_screen()
+    print_banner()
     logger.info("Listing available Ubuntu images for selection:")
     for idx, image in enumerate(images):
         print(Fore.YELLOW + f"{idx + 1}: {image.display_name}")
@@ -129,6 +131,7 @@ def select_image(images):
 
 def initial_setup():
     clear_screen()
+    print_banner()
     config = {}
     
     oci_config = load_oci_config()
@@ -205,6 +208,8 @@ def get_availability_domains(identity_client, compartment_id):
     return [ad.name for ad in availability_domains]
 
 def update_status_message(message):
+    clear_screen()
+    print_banner()
     print(Fore.GREEN + message + Style.RESET_ALL)
 
 def start_instance_creation_process():
