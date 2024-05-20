@@ -4,14 +4,14 @@
 
 Run the following command to download, install dependencies, and run SkyLaunch:
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/your-username/SkyLaunch/main/setup_and_run.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/g3ntrix/SkyLaunch/main/setup_and_run.sh)"
 ```
 ### Manual Setup
 
 Clone the repository:
 
 ```bash
-git clone https://github.com/your-username/SkyLaunch.git
+git clone https://github.com/g3ntrix/SkyLaunch.git
 cd SkyLaunch
 ```
 
