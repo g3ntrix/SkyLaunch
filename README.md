@@ -70,9 +70,12 @@ For optimal performance, run this script on a VPS or a computer with constant ne
 ## Screenshots
 
 ### Main Menu and Instance Creation Process
-<p align="center">
-  <img src="Screenshots/Menu.jpg" alt="Menu" width="45%">
-  <img src="Screenshots/Process.jpg" alt="Process" width="45%">
-</p>
+
+<table>
+  <tr>
+    <td><img src="Screenshots/Menu.jpg" alt="Menu" width="100%"></td>
+    <td><img src="Screenshots/Process.jpg" alt="Process" width="100%"></td>
+  </tr>
+</table>
 
 
