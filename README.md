@@ -1,5 +1,19 @@
 # SkyLaunch
 
+SkyLaunch is an interactive script for creating instances in Oracle Cloud Infrastructure (OCI). With SkyLaunch, you can easily configure and deploy virtual machines (VMs) while benefiting from automatic retries across multiple availability domains. This script is particularly advantageous for free-tier users who cannot use capacity reservations, ensuring that you can secure available capacity as soon as it becomes free.
+
+## Screenshots
+
+### Main Menu and Instance Creation Process
+
+<table>
+  <tr>
+    <td><img src="Screenshots/Menu.jpg" alt="Menu" width="100%"></td>
+    <td><img src="Screenshots/Process.jpg" alt="Process" width="100%"></td>
+  </tr>
+</table>
+
+
 ## Quick Start
 
 Run the following command to download, install dependencies, and run SkyLaunch:
@@ -14,19 +28,6 @@ Clone the repository:
 git clone https://github.com/g3ntrix/SkyLaunch.git
 cd SkyLaunch
 ```
-
-SkyLaunch is an interactive script for creating instances in Oracle Cloud Infrastructure (OCI). With SkyLaunch, you can easily configure and deploy virtual machines (VMs) while benefiting from automatic retries across multiple availability domains. This script is particularly advantageous for free-tier users who cannot use capacity reservations, ensuring that you can secure available capacity as soon as it becomes free.
-
-## Screenshots
-
-### Main Menu and Instance Creation Process
-
-<table>
-  <tr>
-    <td><img src="Screenshots/Menu.jpg" alt="Menu" width="100%"></td>
-    <td><img src="Screenshots/Process.jpg" alt="Process" width="100%"></td>
-  </tr>
-</table>
 
 ## Features
 
