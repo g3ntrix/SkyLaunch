@@ -181,20 +181,27 @@ def create_instance(config, compartment_id, subnet_id, image_id, shape, ssh_publ
     if ssh_public_key:
         metadata['ssh_authorized_keys'] = ssh_public_key
 
+    source_details = oci.core.models.InstanceSourceViaImageDetails(
+        source_type="image",
+        image_id=image_id,
+        boot_volume_size_in_gbs=50  # Set boot volume size to 50 GB
+    )
+
     details = oci.core.models.LaunchInstanceDetails(
         compartment_id=compartment_id,
         availability_domain=availability_domain,
         subnet_id=subnet_id,
-        image_id=image_id,
         shape=shape,
         shape_config=shape_config,
         display_name=instance_name,
-        metadata=metadata
+        metadata=metadata,
+        source_details=source_details
     )
 
     logger.info("Launching the instance...")
     response = compute_client.launch_instance(details)
     return response.data
+
 
 def load_oci_config():
     config_file = '/root/.oci/config'
