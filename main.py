@@ -6,16 +6,13 @@ import json
 from oci.config import from_file
 from colorama import Fore, Style, init
 
-# Setup logging without __main__ prefix
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logger = logging.getLogger()
 
 CONFIG_FILE_PATH = "oci_config.json"
 
-# Initialize colorama
 init(autoreset=True)
 
-# ASCII Art Banner
 banner = """
 ░█▀▀░█░█░█░█░█░░░█▀█░█░█░█▀█░█▀▀░█░█
 ░▀▀█░█▀▄░░█░░█░░░█▀█░█░█░█░█░█░░░█▀█
@@ -65,12 +62,10 @@ def list_shapes(compute_client, compartment_id):
     list_shapes_response = compute_client.list_shapes(compartment_id, limit=50)
     shapes.extend(list_shapes_response.data)
 
-    # Handle pagination
     while list_shapes_response.has_next_page:
         list_shapes_response = compute_client.list_shapes(compartment_id, limit=50, page=list_shapes_response.next_page)
         shapes.extend(list_shapes_response.data)
     
-    # Ensure unique shapes
     unique_shapes = {shape.shape: shape for shape in shapes}.values()
     
     return unique_shapes
@@ -99,12 +94,10 @@ def list_images_by_shape(compute_client, compartment_id, shape):
     list_images_response = compute_client.list_images(compartment_id, shape=shape, limit=50)
     images.extend(list_images_response.data)
 
-    # Handle pagination
     while list_images_response.has_next_page:
         list_images_response = compute_client.list_images(compartment_id, shape=shape, limit=50, page=list_images_response.next_page)
         images.extend(list_images_response.data)
 
-    # Filter for Ubuntu images
     ubuntu_images = [image for image in images if 'Ubuntu' in image.display_name]
 
     if not ubuntu_images:
@@ -184,7 +177,7 @@ def create_instance(config, compartment_id, subnet_id, image_id, shape, ssh_publ
     source_details = oci.core.models.InstanceSourceViaImageDetails(
         source_type="image",
         image_id=image_id,
-        boot_volume_size_in_gbs=50  # Set boot volume size to 50 GB
+        boot_volume_size_in_gbs=50
     )
 
     details = oci.core.models.LaunchInstanceDetails(
@@ -293,8 +286,8 @@ def start_instance_creation_process():
         return
 
     status_messages = []
-    initial_sleep_time = 60  # Initial sleep time in seconds (1 minute)
-    max_sleep_time = 600     # Maximum sleep time in seconds (10 minutes)
+    initial_sleep_time = 60
+    max_sleep_time = 600
     sleep_time = initial_sleep_time
     total_count = 0
     rate_limit_retries = 0
@@ -311,14 +304,14 @@ def start_instance_creation_process():
                     print_banner()
                     print(Fore.GREEN + f"Successfully created instance {instance_name} with OCID {instance.id} in availability domain {ad}")
                     input(Fore.CYAN + "\nPress Enter to return to the menu...")
-                    return  # Exit the loop on successful creation
+                    return
 
                 except oci.exceptions.ServiceError as e:
                     total_count += 1
-                    if e.status == 429:  # Rate limit error code
+                    if e.status == 429:
                         rate_limit_retries += 1
                         status_messages.append(f"Rate limit reached, retry attempt {rate_limit_retries}.")
-                    elif e.status == 500:  # Out of host capacity
+                    elif e.status == 500:
                         capacity_retries += 1
                         status_messages.append(Fore.RED + f"Out of host capacity in {ad}, retry attempt {capacity_retries}. Moving to next availability domain.")
                     else:
@@ -331,16 +324,14 @@ def start_instance_creation_process():
                     status_messages.append(f"Unexpected error occurred: {str(e)}. Retrying...")
                     update_status_message(status_messages)
 
-            # If we've gone through all availability domains, wait before retrying all availability domains
             status_messages.append(Fore.BLUE + f"Completed one round of retries in all availability domains. Next retry attempt in {sleep_time // 60} minutes..." + Style.RESET_ALL)
             update_status_message(status_messages)
-            time.sleep(sleep_time)  # Wait before retrying all availability domains
+            time.sleep(sleep_time)
 
-            # Adjust sleep time based on the backoff strategy
             if rate_limit_retries > 0:
-                sleep_time = min(max_sleep_time, sleep_time * 2)  # Exponential backoff for rate limit errors
+                sleep_time = min(max_sleep_time, sleep_time * 2)
             else:
-                sleep_time = min(max_sleep_time, sleep_time + initial_sleep_time)  # Incremental backoff for other errors
+                sleep_time = min(max_sleep_time, sleep_time + initial_sleep_time)
 
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
