@@ -202,7 +202,6 @@ def create_instance(config, compartment_id, subnet_id, image_id, shape, ssh_publ
     response = compute_client.launch_instance(details)
     return response.data
 
-
 def load_oci_config():
     config_file = '/root/.oci/config'
     profile_name = 'DEFAULT'
@@ -346,8 +345,6 @@ def start_instance_creation_process():
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
         input(Fore.RED + "\nPress Enter to return to the menu...")
-
-
 
 def display_menu():
     clear_screen()
