@@ -330,13 +330,15 @@ def start_instance_creation_process():
                     sleep_time = min(max_sleep_time, sleep_time + initial_sleep_time)  # Incremental backoff
                     time.sleep(sleep_time)
 
-            status_messages.append(Fore.BLUE + f"Next retry attempt in {sleep_time // 60} minutes..." + Style.RESET_ALL)
+            # If we've gone through all availability domains, reset sleep_time and try again
+            status_messages.append(Fore.BLUE + f"Completed one round of retries in all availability domains. Next retry attempt in {sleep_time // 60} minutes..." + Style.RESET_ALL)
             update_status_message(status_messages)
             time.sleep(sleep_time)  # Wait before retrying all availability domains
 
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
         input(Fore.RED + "\nPress Enter to return to the menu...")
+
 
 
 def display_menu():
