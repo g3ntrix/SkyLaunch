@@ -287,10 +287,12 @@ def start_instance_creation_process():
         return
 
     status_messages = []
-    sleep_time = 600  # Initial sleep time in seconds (10 minutes)
-    wait_s_for_retry = 1
+    initial_sleep_time = 60  # Initial sleep time in seconds (1 minute)
+    max_sleep_time = 600     # Maximum sleep time in seconds (10 minutes)
+    sleep_time = initial_sleep_time
     total_count = 0
-    oc = 0
+    rate_limit_retries = 0
+    capacity_retries = 0
 
     try:
         while True:
@@ -307,29 +309,35 @@ def start_instance_creation_process():
 
                 except oci.exceptions.ServiceError as e:
                     total_count += 1
-                    status_messages.append(f"Service error occurred: {e.message}")
                     if e.status == 429:  # Rate limit error code
-                        status_messages.append("Rate limit reached, changing retry interval to 1 minute.")
-                        wait_s_for_retry = 60  # Reduce sleep time to 1 minute
+                        rate_limit_retries += 1
+                        status_messages.append(f"Rate limit reached, retry attempt {rate_limit_retries}. Retrying after {sleep_time} seconds.")
+                        sleep_time = min(max_sleep_time, sleep_time * 2)  # Exponential backoff
                     elif e.status == 500:  # Out of host capacity
-                        status_messages.append(Fore.RED + f"Out of host capacity in {ad}, moving to next availability domain.")
+                        capacity_retries += 1
+                        status_messages.append(Fore.RED + f"Out of host capacity in {ad}, retry attempt {capacity_retries}. Moving to next availability domain.")
+                        sleep_time = min(max_sleep_time, sleep_time + initial_sleep_time)  # Incremental backoff
                     else:
-                        status_messages.append("Will retry in 10 minutes.")
-                        wait_s_for_retry = 600  # Set sleep time back to 10 minutes
+                        status_messages.append(f"Service error occurred: {e.message}. Retrying after {sleep_time} seconds.")
+                        sleep_time = min(max_sleep_time, sleep_time + initial_sleep_time)  # Incremental backoff
+
                     update_status_message(status_messages)
-                    time.sleep(wait_s_for_retry)
+                    time.sleep(sleep_time)
                 except Exception as e:
                     total_count += 1
-                    status_messages.append(f"Unexpected error occurred: {str(e)}. Retrying...")
+                    status_messages.append(f"Unexpected error occurred: {str(e)}. Retrying after {sleep_time} seconds.")
                     update_status_message(status_messages)
-                    time.sleep(wait_s_for_retry)
+                    sleep_time = min(max_sleep_time, sleep_time + initial_sleep_time)  # Incremental backoff
+                    time.sleep(sleep_time)
 
-            status_messages.append(Fore.BLUE + f"Next retry attempt in {wait_s_for_retry // 60} minutes..." + Style.RESET_ALL)
+            status_messages.append(Fore.BLUE + f"Next retry attempt in {sleep_time // 60} minutes..." + Style.RESET_ALL)
             update_status_message(status_messages)
-            time.sleep(wait_s_for_retry)  # Wait before retrying all availability domains
+            time.sleep(sleep_time)  # Wait before retrying all availability domains
+
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
         input(Fore.RED + "\nPress Enter to return to the menu...")
+
 
 def display_menu():
     clear_screen()
