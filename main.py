@@ -254,8 +254,13 @@ def start_instance_creation_process():
     ssh_public_key = None
     if ssh_public_key_file:
         logger.info("Reading SSH public key from file: %s", ssh_public_key_file)
-        with open(ssh_public_key_file, 'r') as f:
-            ssh_public_key = f.read()
+        try:
+            with open(ssh_public_key_file, 'r') as f:
+                ssh_public_key = f.read()
+        except Exception as e:
+            logger.error(f"Failed to read SSH public key file: {e}")
+            input(Fore.RED + "\nPress Enter to return to the menu...")
+            return
 
     identity_client = oci.identity.IdentityClient(config)
     compute_client = oci.core.ComputeClient(config)
@@ -267,6 +272,7 @@ def start_instance_creation_process():
     total_ocpus, total_memory = report_resource_usage(compute_client, compartment_id)
     if total_ocpus + ocpus > 4 or total_memory + memory_in_gbs > 24:
         logger.critical("Total maximum resource exceed free tier limit (Over 4 ocpus/24GB total). **SCRIPT STOPPED**")
+        input(Fore.RED + "\nPress Enter to return to the menu...")
         return
 
     status_messages = []
@@ -275,39 +281,44 @@ def start_instance_creation_process():
     total_count = 0
     oc = 0
 
-    while True:
-        for ad in availability_domains:
-            try:
-                status_messages.append(f"Attempting to create a new instance in availability domain {ad}...")
-                update_status_message(status_messages)
-                instance = create_instance(config, compartment_id, subnet_id, image_id, shape, ssh_public_key, ocpus, memory_in_gbs, instance_name, ad)
-                clear_screen()
-                print_banner()
-                print(Fore.GREEN + f"Successfully created instance {instance_name} with OCID {instance.id} in availability domain {ad}")
-                return  # Exit the loop on successful creation
+    try:
+        while True:
+            for ad in availability_domains:
+                try:
+                    status_messages.append(f"Attempting to create a new instance in availability domain {ad}...")
+                    update_status_message(status_messages)
+                    instance = create_instance(config, compartment_id, subnet_id, image_id, shape, ssh_public_key, ocpus, memory_in_gbs, instance_name, ad)
+                    clear_screen()
+                    print_banner()
+                    print(Fore.GREEN + f"Successfully created instance {instance_name} with OCID {instance.id} in availability domain {ad}")
+                    input(Fore.CYAN + "\nPress Enter to return to the menu...")
+                    return  # Exit the loop on successful creation
 
-            except oci.exceptions.ServiceError as e:
-                total_count += 1
-                status_messages.append(f"Service error occurred: {e.message}")
-                if e.status == 429:  # Rate limit error code
-                    status_messages.append("Rate limit reached, changing retry interval to 1 minute.")
-                    wait_s_for_retry = 60  # Reduce sleep time to 1 minute
-                elif e.status == 500:  # Out of host capacity
-                    status_messages.append(Fore.RED + f"Out of host capacity in {ad}, moving to next availability domain.")
-                else:
-                    status_messages.append("Will retry in 10 minutes.")
-                    wait_s_for_retry = 600  # Set sleep time back to 10 minutes
-                update_status_message(status_messages)
-                time.sleep(wait_s_for_retry)
-            except Exception as e:
-                total_count += 1
-                status_messages.append(f"Unexpected error occurred: {str(e)}. Retrying...")
-                update_status_message(status_messages)
-                time.sleep(wait_s_for_retry)
+                except oci.exceptions.ServiceError as e:
+                    total_count += 1
+                    status_messages.append(f"Service error occurred: {e.message}")
+                    if e.status == 429:  # Rate limit error code
+                        status_messages.append("Rate limit reached, changing retry interval to 1 minute.")
+                        wait_s_for_retry = 60  # Reduce sleep time to 1 minute
+                    elif e.status == 500:  # Out of host capacity
+                        status_messages.append(Fore.RED + f"Out of host capacity in {ad}, moving to next availability domain.")
+                    else:
+                        status_messages.append("Will retry in 10 minutes.")
+                        wait_s_for_retry = 600  # Set sleep time back to 10 minutes
+                    update_status_message(status_messages)
+                    time.sleep(wait_s_for_retry)
+                except Exception as e:
+                    total_count += 1
+                    status_messages.append(f"Unexpected error occurred: {str(e)}. Retrying...")
+                    update_status_message(status_messages)
+                    time.sleep(wait_s_for_retry)
 
-        status_messages.append(Fore.BLUE + f"Next retry attempt in {wait_s_for_retry // 60} minutes..." + Style.RESET_ALL)
-        update_status_message(status_messages)
-        time.sleep(wait_s_for_retry)  # Wait before retrying all availability domains
+            status_messages.append(Fore.BLUE + f"Next retry attempt in {wait_s_for_retry // 60} minutes..." + Style.RESET_ALL)
+            update_status_message(status_messages)
+            time.sleep(wait_s_for_retry)  # Wait before retrying all availability domains
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {e}")
+        input(Fore.RED + "\nPress Enter to return to the menu...")
 
 def display_menu():
     clear_screen()
