@@ -221,7 +221,7 @@ def report_resource_usage(compute_client, compartment_id):
     current_instance = compute_client.list_instances(compartment_id=compartment_id)
     response = current_instance.data
 
-    total_ocpus = total_memory = 0
+    total_ocpus = total_memory = micro_count = a1_flex_ocpus = a1_flex_memory = 0
     instance_names = []
 
     if response:
@@ -229,14 +229,19 @@ def report_resource_usage(compute_client, compartment_id):
         for instance in response:
             logger.info(f"{instance.display_name} - {instance.shape} - {int(instance.shape_config.ocpus)} ocpu(s) - {instance.shape_config.memory_in_gbs} GB(s) | State: {instance.lifecycle_state}")
             instance_names.append(instance.display_name)
-            if instance.lifecycle_state not in ("TERMINATING", "TERMINATED"):
-                total_ocpus += int(instance.shape_config.ocpus)
-                total_memory += int(instance.shape_config.memory_in_gbs)
-        logger.info(f"Total ocpus: {total_ocpus} - Total memory: {total_memory} (GB)")
+            if instance.shape == "VM.Standard.E2.1.Micro" and instance.lifecycle_state not in ("TERMINATING", "TERMINATED"):
+                micro_count += 1
+            elif instance.shape == "VM.Standard.A1.Flex" and instance.lifecycle_state not in ("TERMINATING", "TERMINATED"):
+                a1_flex_ocpus += int(instance.shape_config.ocpus)
+                a1_flex_memory += int(instance.shape_config.memory_in_gbs)
+        total_ocpus = a1_flex_ocpus
+        total_memory = a1_flex_memory
+        logger.info(f"Total A1 Flex OCPUs: {a1_flex_ocpus} - Total A1 Flex Memory: {a1_flex_memory} (GB)")
+        logger.info(f"Total Micro Instances: {micro_count}")
     else:
         logger.info("No instances found!")
 
-    return total_ocpus, total_memory
+    return micro_count, total_ocpus, total_memory
 
 def start_instance_creation_process():
     config = load_oci_config()
@@ -269,9 +274,15 @@ def start_instance_creation_process():
     clear_screen()
     print_banner()
 
-    total_ocpus, total_memory = report_resource_usage(compute_client, compartment_id)
-    if total_ocpus + ocpus > 4 or total_memory + memory_in_gbs > 24:
-        logger.critical("Total maximum resource exceed free tier limit (Over 4 ocpus/24GB total). **SCRIPT STOPPED**")
+    micro_count, total_ocpus, total_memory = report_resource_usage(compute_client, compartment_id)
+
+    if shape == "VM.Standard.E2.1.Micro" and micro_count >= 2:
+        logger.critical("Exceeded the limit for VM.Standard.E2.1.Micro instances. **SCRIPT STOPPED**")
+        input(Fore.RED + "\nPress Enter to return to the menu...")
+        return
+
+    if shape == "VM.Standard.A1.Flex" and (total_ocpus + ocpus > 4 or total_memory + memory_in_gbs > 24):
+        logger.critical("Total maximum resource exceed free tier limit (Over 4 OCPUs/24GB total for A1 Flex). **SCRIPT STOPPED**")
         input(Fore.RED + "\nPress Enter to return to the menu...")
         return
 
