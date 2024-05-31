@@ -311,29 +311,30 @@ def start_instance_creation_process():
                     total_count += 1
                     if e.status == 429:  # Rate limit error code
                         rate_limit_retries += 1
-                        status_messages.append(f"Rate limit reached, retry attempt {rate_limit_retries}. Retrying after {sleep_time} seconds.")
-                        sleep_time = min(max_sleep_time, sleep_time * 2)  # Exponential backoff
+                        status_messages.append(f"Rate limit reached, retry attempt {rate_limit_retries}.")
                     elif e.status == 500:  # Out of host capacity
                         capacity_retries += 1
                         status_messages.append(Fore.RED + f"Out of host capacity in {ad}, retry attempt {capacity_retries}. Moving to next availability domain.")
-                        sleep_time = min(max_sleep_time, sleep_time + initial_sleep_time)  # Incremental backoff
                     else:
-                        status_messages.append(f"Service error occurred: {e.message}. Retrying after {sleep_time} seconds.")
-                        sleep_time = min(max_sleep_time, sleep_time + initial_sleep_time)  # Incremental backoff
-
+                        status_messages.append(f"Service error occurred: {e.message}.")
+                    
                     update_status_message(status_messages)
-                    time.sleep(sleep_time)
+
                 except Exception as e:
                     total_count += 1
-                    status_messages.append(f"Unexpected error occurred: {str(e)}. Retrying after {sleep_time} seconds.")
+                    status_messages.append(f"Unexpected error occurred: {str(e)}. Retrying...")
                     update_status_message(status_messages)
-                    sleep_time = min(max_sleep_time, sleep_time + initial_sleep_time)  # Incremental backoff
-                    time.sleep(sleep_time)
 
-            # If we've gone through all availability domains, reset sleep_time and try again
+            # If we've gone through all availability domains, wait before retrying all availability domains
             status_messages.append(Fore.BLUE + f"Completed one round of retries in all availability domains. Next retry attempt in {sleep_time // 60} minutes..." + Style.RESET_ALL)
             update_status_message(status_messages)
             time.sleep(sleep_time)  # Wait before retrying all availability domains
+
+            # Adjust sleep time based on the backoff strategy
+            if rate_limit_retries > 0:
+                sleep_time = min(max_sleep_time, sleep_time * 2)  # Exponential backoff for rate limit errors
+            else:
+                sleep_time = min(max_sleep_time, sleep_time + initial_sleep_time)  # Incremental backoff for other errors
 
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
