@@ -216,6 +216,28 @@ def update_status_message(status_messages):
         else:
             print(Fore.GREEN + message + Style.RESET_ALL)
 
+def report_resource_usage(compute_client, compartment_id):
+    logger.info("Checking current instances and resource usage in account...")
+    current_instance = compute_client.list_instances(compartment_id=compartment_id)
+    response = current_instance.data
+
+    total_ocpus = total_memory = 0
+    instance_names = []
+
+    if response:
+        logger.info(f"{len(response)} instance(s) found!")
+        for instance in response:
+            logger.info(f"{instance.display_name} - {instance.shape} - {int(instance.shape_config.ocpus)} ocpu(s) - {instance.shape_config.memory_in_gbs} GB(s) | State: {instance.lifecycle_state}")
+            instance_names.append(instance.display_name)
+            if instance.lifecycle_state not in ("TERMINATING", "TERMINATED"):
+                total_ocpus += int(instance.shape_config.ocpus)
+                total_memory += int(instance.shape_config.memory_in_gbs)
+        logger.info(f"Total ocpus: {total_ocpus} - Total memory: {total_memory} (GB)")
+    else:
+        logger.info("No instances found!")
+
+    return total_ocpus, total_memory
+
 def start_instance_creation_process():
     config = load_oci_config()
     user_config = load_config()
@@ -236,14 +258,22 @@ def start_instance_creation_process():
             ssh_public_key = f.read()
 
     identity_client = oci.identity.IdentityClient(config)
+    compute_client = oci.core.ComputeClient(config)
     availability_domains = get_availability_domains(identity_client, compartment_id)
-
-    sleep_time = 600  # Initial sleep time in seconds (10 minutes)
 
     clear_screen()
     print_banner()
 
+    total_ocpus, total_memory = report_resource_usage(compute_client, compartment_id)
+    if total_ocpus + ocpus > 4 or total_memory + memory_in_gbs > 24:
+        logger.critical("Total maximum resource exceed free tier limit (Over 4 ocpus/24GB total). **SCRIPT STOPPED**")
+        return
+
     status_messages = []
+    sleep_time = 600  # Initial sleep time in seconds (10 minutes)
+    wait_s_for_retry = 1
+    total_count = 0
+    oc = 0
 
     while True:
         for ad in availability_domains:
@@ -257,20 +287,27 @@ def start_instance_creation_process():
                 return  # Exit the loop on successful creation
 
             except oci.exceptions.ServiceError as e:
+                total_count += 1
                 status_messages.append(f"Service error occurred: {e.message}")
                 if e.status == 429:  # Rate limit error code
                     status_messages.append("Rate limit reached, changing retry interval to 1 minute.")
-                    sleep_time = 60  # Reduce sleep time to 1 minute
+                    wait_s_for_retry = 60  # Reduce sleep time to 1 minute
                 elif e.status == 500:  # Out of host capacity
                     status_messages.append(Fore.RED + f"Out of host capacity in {ad}, moving to next availability domain.")
                 else:
                     status_messages.append("Will retry in 10 minutes.")
-                    sleep_time = 600  # Set sleep time back to 10 minutes
+                    wait_s_for_retry = 600  # Set sleep time back to 10 minutes
                 update_status_message(status_messages)
-            time.sleep(1)
-        status_messages.append(Fore.BLUE + f"Next retry attempt in {sleep_time // 60} minutes..." + Style.RESET_ALL)
+                time.sleep(wait_s_for_retry)
+            except Exception as e:
+                total_count += 1
+                status_messages.append(f"Unexpected error occurred: {str(e)}. Retrying...")
+                update_status_message(status_messages)
+                time.sleep(wait_s_for_retry)
+
+        status_messages.append(Fore.BLUE + f"Next retry attempt in {wait_s_for_retry // 60} minutes..." + Style.RESET_ALL)
         update_status_message(status_messages)
-        time.sleep(sleep_time)  # Wait before retrying all availability domains
+        time.sleep(wait_s_for_retry)  # Wait before retrying all availability domains
 
 def display_menu():
     clear_screen()
