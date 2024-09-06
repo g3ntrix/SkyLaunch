@@ -135,13 +135,41 @@ def select_image(images):
 
 
 def install_oci_cli():
+    logger.info("Checking OCI CLI installation...")
+    if os.path.exists('/root/lib/oracle-cli'):
+        logger.warning("Existing OCI CLI installation found in /root/lib/oracle-cli")
+        choice = input("Do you want to (r)emove the existing installation, (u)se the existing installation, or (c)ancel? (r/u/c): ").lower()
+        if choice == 'r':
+            logger.info("Removing existing OCI CLI installation...")
+            try:
+                subprocess.run(["rm", "-rf", "/root/lib/oracle-cli"], check=True)
+            except subprocess.CalledProcessError:
+                logger.error("Failed to remove existing OCI CLI installation. Please remove it manually.")
+                return False
+        elif choice == 'u':
+            logger.info("Using existing OCI CLI installation.")
+            return True
+        else:
+            logger.info("Installation cancelled.")
+            return False
+
     logger.info("Installing OCI CLI...")
     try:
-        subprocess.run(["bash", "-c", "curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh | bash -s -- --accept-all-defaults"], check=True)
+        subprocess.run([
+            "bash", "-c",
+            "curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh | bash -s -- --accept-all-defaults"
+        ], check=True)
         logger.info("OCI CLI installed successfully.")
+
+        # Add OCI CLI to PATH if not already present
+        with open(os.path.expanduser("~/.bashrc"), "a") as bashrc:
+            bashrc.write('\n# Add OCI CLI to PATH\nexport PATH=$PATH:/root/bin\n')
+
+        logger.info("Added OCI CLI to PATH. Please restart your shell or run 'source ~/.bashrc' to apply changes.")
+        return True
     except subprocess.CalledProcessError:
         logger.error("Failed to install OCI CLI. Please install it manually.")
-        exit(1)
+        return False
 
 
 def setup_oci_config():
@@ -149,9 +177,10 @@ def setup_oci_config():
     try:
         subprocess.run(["oci", "setup", "config"], check=True)
         logger.info("OCI CLI configuration completed successfully.")
+        return True
     except subprocess.CalledProcessError:
         logger.error("Failed to set up OCI CLI configuration. Please configure it manually.")
-        exit(1)
+        return False
 
 
 def check_oci_cli_setup():
@@ -159,12 +188,15 @@ def check_oci_cli_setup():
         logger.info("OCI CLI configuration not found.")
         install = input("Do you want to install and configure OCI CLI? (y/n): ").lower()
         if install == 'y':
-            install_oci_cli()
-            setup_oci_config()
+            if install_oci_cli() and setup_oci_config():
+                return True
+            else:
+                logger.error("OCI CLI setup failed. Please set it up manually.")
+                exit(1)
         else:
             logger.error("OCI CLI is required to run this script. Exiting.")
             exit(1)
-
+    return True
 
 def load_oci_config():
     check_oci_cli_setup()
