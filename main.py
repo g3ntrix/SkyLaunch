@@ -3,7 +3,6 @@ import time
 import logging
 import os
 import json
-import subprocess
 from oci.config import from_file
 from colorama import Fore, Style, init
 
@@ -11,7 +10,6 @@ logging.basicConfig(level=logging.INFO, format='%(message)s')
 logger = logging.getLogger()
 
 CONFIG_FILE_PATH = "oci_config.json"
-OCI_CONFIG_FILE = "/root/.oci/config"
 
 init(autoreset=True)
 
@@ -59,6 +57,8 @@ def view_config(compute_client, config):
             except oci.exceptions.ServiceError as e:
                 logger.warning("Unable to retrieve image details: %s", e.message)
                 print(Fore.YELLOW + f"{key}: {value}")
+        elif key == "ssh_public_key":
+            print(Fore.YELLOW + f"{key}: {'*' * 20}")  # Mask the SSH key
         else:
             print(Fore.YELLOW + f"{key}: {value}")
     input(Fore.CYAN + "\nPress Enter to return to the menu...")
@@ -134,78 +134,6 @@ def select_image(images):
             logger.warning("Invalid input, please enter a number.")
 
 
-def install_oci_cli():
-    logger.info("Checking OCI CLI installation...")
-    if os.path.exists('/root/lib/oracle-cli'):
-        logger.warning("Existing OCI CLI installation found in /root/lib/oracle-cli")
-        choice = input("Do you want to (r)emove the existing installation, (u)se the existing installation, or (c)ancel? (r/u/c): ").lower()
-        if choice == 'r':
-            logger.info("Removing existing OCI CLI installation...")
-            try:
-                subprocess.run(["rm", "-rf", "/root/lib/oracle-cli"], check=True)
-            except subprocess.CalledProcessError:
-                logger.error("Failed to remove existing OCI CLI installation. Please remove it manually.")
-                return False
-        elif choice == 'u':
-            logger.info("Using existing OCI CLI installation.")
-            return True
-        else:
-            logger.info("Installation cancelled.")
-            return False
-
-    logger.info("Installing OCI CLI...")
-    try:
-        subprocess.run([
-            "bash", "-c",
-            "curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh | bash -s -- --accept-all-defaults"
-        ], check=True)
-        logger.info("OCI CLI installed successfully.")
-
-        # Add OCI CLI to PATH if not already present
-        with open(os.path.expanduser("~/.bashrc"), "a") as bashrc:
-            bashrc.write('\n# Add OCI CLI to PATH\nexport PATH=$PATH:/root/bin\n')
-
-        logger.info("Added OCI CLI to PATH. Please restart your shell or run 'source ~/.bashrc' to apply changes.")
-        return True
-    except subprocess.CalledProcessError:
-        logger.error("Failed to install OCI CLI. Please install it manually.")
-        return False
-
-
-def setup_oci_config():
-    logger.info("Setting up OCI CLI configuration...")
-    try:
-        subprocess.run(["oci", "setup", "config"], check=True)
-        logger.info("OCI CLI configuration completed successfully.")
-        return True
-    except subprocess.CalledProcessError:
-        logger.error("Failed to set up OCI CLI configuration. Please configure it manually.")
-        return False
-
-
-def check_oci_cli_setup():
-    if not os.path.exists(OCI_CONFIG_FILE):
-        logger.info("OCI CLI configuration not found.")
-        install = input("Do you want to install and configure OCI CLI? (y/n): ").lower()
-        if install == 'y':
-            if install_oci_cli() and setup_oci_config():
-                return True
-            else:
-                logger.error("OCI CLI setup failed. Please set it up manually.")
-                exit(1)
-        else:
-            logger.error("OCI CLI is required to run this script. Exiting.")
-            exit(1)
-    return True
-
-def load_oci_config():
-    check_oci_cli_setup()
-    config_file = OCI_CONFIG_FILE
-    profile_name = 'DEFAULT'
-    logger.info("Loading OCI configuration from file: %s, profile: %s", config_file, profile_name)
-    return from_file(file_location=config_file, profile_name=profile_name)
-
-
 def initial_setup():
     clear_screen()
     print_banner()
@@ -233,9 +161,15 @@ def initial_setup():
 
     use_ssh = input("Do you want to use an SSH public key? (yes/no): ").strip().lower() == 'yes'
     if use_ssh:
-        config['ssh_public_key_file'] = input("Enter the SSH public key file path (default: /root/id_rsa.pub): ") or '/root/id_rsa.pub'
+        ssh_key_path = input("Enter the SSH public key file path (default: /root/id_rsa.pub): ").strip() or '/root/id_rsa.pub'
+        try:
+            with open(ssh_key_path, 'r') as f:
+                config['ssh_public_key'] = f.read().strip()
+        except Exception as e:
+            logger.error(f"Failed to read SSH public key file: {e}")
+            config['ssh_public_key'] = None
     else:
-        config['ssh_public_key_file'] = None
+        config['ssh_public_key'] = None
 
     config['instance_name'] = input("Enter the instance name (default: Default-Instance): ") or 'Default-Instance'
     config['ocpus'] = int(input("Enter the number of OCPUs (default: 2): ") or 2)
@@ -277,8 +211,22 @@ def create_instance(config, compartment_id, subnet_id, image_id, shape, ssh_publ
     )
 
     logger.info("Launching the instance...")
-    response = compute_client.launch_instance(details)
-    return response.data
+    try:
+        response = compute_client.launch_instance(details)
+        return response.data
+    except oci.exceptions.ServiceError as e:
+        logger.error(f"Service Error - Status: {e.status}")
+        logger.error(f"Code: {e.code}")
+        logger.error(f"Message: {e.message}")
+        logger.error(f"Request ID: {e.request_id}")
+        raise  # Re-raise the exception after logging
+
+
+def load_oci_config():
+    config_file = '/root/.oci/config'
+    profile_name = 'DEFAULT'
+    logger.info("Loading OCI configuration from file: %s, profile: %s", config_file, profile_name)
+    return from_file(file_location=config_file, profile_name=profile_name)
 
 
 def get_availability_domains(identity_client, compartment_id):
@@ -332,23 +280,12 @@ def start_instance_creation_process():
 
     compartment_id = user_config.get('compartment_id')
     subnet_id = user_config.get('subnet_id')
-    ssh_public_key_file = user_config.get('ssh_public_key_file')
+    ssh_public_key = user_config.get('ssh_public_key')
     instance_name = user_config.get('instance_name', 'Default-Instance')
     ocpus = user_config.get('ocpus', 2)
     memory_in_gbs = user_config.get('memory_in_gbs', 12)
     shape = user_config.get('shape')
     image_id = user_config.get('image_id')
-
-    ssh_public_key = None
-    if ssh_public_key_file:
-        logger.info("Reading SSH public key from file: %s", ssh_public_key_file)
-        try:
-            with open(ssh_public_key_file, 'r') as f:
-                ssh_public_key = f.read()
-        except Exception as e:
-            logger.error(f"Failed to read SSH public key file: {e}")
-            input(Fore.RED + "\nPress Enter to return to the menu...")
-            return
 
     identity_client = oci.identity.IdentityClient(config)
     compute_client = oci.core.ComputeClient(config)
@@ -368,6 +305,7 @@ def start_instance_creation_process():
         logger.critical("Total maximum resource exceed free tier limit (Over 4 OCPUs/24GB total for A1 Flex). **SCRIPT STOPPED**")
         input(Fore.RED + "\nPress Enter to return to the menu...")
         return
+
     status_messages = []
     initial_sleep_time = 60
     max_sleep_time = 600
@@ -386,11 +324,17 @@ def start_instance_creation_process():
                     clear_screen()
                     print_banner()
                     print(Fore.GREEN + f"Successfully created instance {instance_name} with OCID {instance.id} in availability domain {ad}")
-                    input(Fore.CYAN + "\nPress Enter to return to the menu...")
+                    input(Fore.RED + "\nPress Enter to return to the menu...")
                     return
 
                 except oci.exceptions.ServiceError as e:
                     total_count += 1
+                    logger.error(f"Detailed error information:")
+                    logger.error(f"Status: {e.status}")
+                    logger.error(f"Code: {e.code}")
+                    logger.error(f"Message: {e.message}")
+                    logger.error(f"Request ID: {e.request_id}")
+
                     if e.status == 429:
                         rate_limit_retries += 1
                         status_messages.append(f"Rate limit reached, retry attempt {rate_limit_retries}.")
@@ -398,7 +342,7 @@ def start_instance_creation_process():
                         capacity_retries += 1
                         status_messages.append(Fore.RED + f"Out of host capacity in {ad}, retry attempt {capacity_retries}. Moving to next availability domain.")
                     else:
-                        status_messages.append(f"Service error occurred: {e.message}.")
+                        status_messages.append(f"Service error occurred: {e.message}")
 
                     update_status_message(status_messages)
 
@@ -419,8 +363,6 @@ def start_instance_creation_process():
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
         input(Fore.RED + "\nPress Enter to return to the menu...")
-
-
 def display_menu():
     clear_screen()
     print_banner()
@@ -431,7 +373,6 @@ def display_menu():
     print(Fore.CYAN + "4. Exit")
     choice = input(Fore.CYAN + "Enter your choice: ")
     return choice
-
 
 def main():
     clear_screen()
@@ -457,7 +398,6 @@ def main():
             break
         else:
             logger.warning("Invalid choice, please try again.")
-
 
 if __name__ == "__main__":
     logger.info("Starting the instance creation process...")
